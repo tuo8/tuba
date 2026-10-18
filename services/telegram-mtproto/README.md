@@ -39,8 +39,12 @@ Authorization: Bearer YOUR_TUBA_API_TOKEN
 - `GET /api/v1/folders` — Saved Messages plus broadcast channels
 - `POST /api/v1/folders` — create a Telegram channel used as a folder; JSON body: `{"name":"Archive"}`
 - `PATCH /api/v1/folders/:id` — rename a channel folder; JSON body: `{"name":"New name"}`
+- `DELETE /api/v1/folders/:id` — delete an empty channel folder only; non-empty folders are refused with HTTP 409
 - `GET /api/v1/files?folderId=me&limit=100&offsetId=0` — list files in Saved Messages or a channel folder
+- `GET /api/v1/search?q=invoice` — search recent files in Saved Messages and up to 50 channel folders
 - `POST /api/v1/files` — multipart form with `file`, optional `folderId` and `caption`
+- `PATCH /api/v1/files/:id?folderId=me` — rename a file; the service reuploads it with the new name and deletes the old message only after the new upload succeeds; JSON body: `{"name":"new-name.pdf"}`
+- `POST /api/v1/files/:id/move?folderId=me` — move a file to another folder; JSON body: `{"targetFolderId":"123456789"}`
 - `GET /api/v1/files/:id/download?folderId=me` — download a Telegram file
 - `DELETE /api/v1/files/:id?folderId=me` — delete a Telegram message/file
 
@@ -53,6 +57,6 @@ The service checks the signed-in account's Premium flag at startup and sets the 
 ## Current milestone limitations
 
 - The service API is implemented, but the existing ImgBed front end and Cloudflare upload handler still need integration.
-- Folder organization is represented by Telegram broadcast channels. Moving a file between folders is not implemented yet.
-- File listing reads a bounded recent message window; a production UI should add pagination and robust handling for Telegram rate limits.
+- Folder organization is represented by Telegram broadcast channels. Moving files forwards the message to the target channel and then removes the original; Telegram may show forwarded-message attribution.
+- File listing and search use bounded recent-message windows. Production use should add pagination and robust handling for Telegram rate limits.
 - This service should be tested against a real Telegram account before production use.

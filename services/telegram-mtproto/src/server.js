@@ -44,8 +44,7 @@ console.log(
 
 const storage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, tempDir),
-  filename: (_req, _file, callback) =>
-    callback(null, `${crypto.randomUUID()}.upload`),
+  filename: (_req, _file, callback) => callback(null, `${crypto.randomUUID()}.upload`),
 });
 const upload = multer({
   storage,
@@ -152,6 +151,12 @@ async function findMessage(folderId, messageId) {
   return { entity, message };
 }
 
+async function downloadToTemp(message) {
+  const tempPath = path.join(tempDir, `${crypto.randomUUID()}.download`);
+  await client.downloadMedia(message, { outputFile: tempPath });
+  return tempPath;
+}
+
 app.get("/api/v1/health", (_req, res) => {
   res.json({
     ok: true,
@@ -208,6 +213,22 @@ app.patch("/api/v1/folders/:id", express.json({ limit: "16kb" }), async (req, re
   }
 });
 
+app.delete("/api/v1/folders/:id", async (req, res, next) => {
+  try {
+    const folderId = String(req.params.id);
+    if (folderId === "me") return sendError(res, 400, "Saved Messages cannot be deleted.");
+    const entity = await resolveFolder(folderId);
+    const recent = await client.getMessages(entity, { limit: 1 });
+    if (recent.length > 0) {
+      return sendError(res, 409, "Folder is not empty. Move or delete its files before deleting the folder.");
+    }
+    await client.invoke(new Api.channels.DeleteChannel({ channel: entity }));
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/v1/files", async (req, res, next) => {
   try {
     const folderId = String(req.query.folderId || "me");
@@ -222,8 +243,39 @@ app.get("/api/v1/files", async (req, res, next) => {
   }
 });
 
+app.get("/api/v1/search", async (req, res, next) => {
+  try {
+    const query = String(req.query.q || "").trim().toLocaleLowerCase();
+    if (query.length < 2) return sendError(res, 400, "Search query must contain at least 2 characters.");
+    const requestedFolder = req.query.folderId ? String(req.query.folderId) : null;
+    const targets = requestedFolder
+      ? [{ id: requestedFolder, entity: await resolveFolder(requestedFolder) }]
+      : [
+          { id: "me", entity: "me" },
+          ...(await dialogs())
+            .map((dialog) => dialog.entity)
+            .filter((entity) => entity?.className === "Channel" && entity.broadcast)
+            .slice(0, 50)
+            .map((entity) => ({ id: String(entity.id), entity })),
+        ];
+    const matches = [];
+    for (const target of targets) {
+      const messages = await client.getMessages(target.entity, { limit: 200, search: query });
+      for (const message of messages) {
+        const file = fileSummary(message, target.id);
+        if (file && `${file.name} ${file.caption}`.toLocaleLowerCase().includes(query)) {
+          matches.push(file);
+        }
+      }
+    }
+    res.json({ files: matches.slice(0, 200), complete: targets.length <= 51 });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/v1/files", upload.single("file"), async (req, res, next) => {
-  let tempPath = req.file?.path;
+  const tempPath = req.file?.path;
   try {
     if (!req.file) return sendError(res, 400, "Select a file to upload.");
     if (req.file.size > accountMaxBytes) return sendError(res, 413, `File exceeds this account's ${accountMaxBytes}-byte Telegram limit.`);
@@ -240,10 +292,59 @@ app.post("/api/v1/files", upload.single("file"), async (req, res, next) => {
     const message = Array.isArray(sent) ? sent[0] : sent;
     res.status(201).json({ file: fileSummary(message, folderId), maxFileBytes: accountMaxBytes });
   } catch (error) {
-    if (error?.code === "LIMIT_FILE_SIZE") return sendError(res, 413, `File exceeds this account's ${accountMaxBytes}-byte Telegram limit.`);
     next(error);
   } finally {
     if (tempPath) await fs.promises.unlink(tempPath).catch(() => {});
+  }
+});
+
+app.patch("/api/v1/files/:id", express.json({ limit: "16kb" }), async (req, res, next) => {
+  let tempPath;
+  try {
+    const folderId = String(req.query.folderId || "me");
+    const newName = safeFileName(req.body?.name);
+    if (!req.body?.name || !newName || newName.length > 240) {
+      return sendError(res, 400, "A valid new file name is required.");
+    }
+    const { entity, message } = await findMessage(folderId, req.params.id);
+    tempPath = await downloadToTemp(message);
+    const sent = await client.sendFile(entity, {
+      file: tempPath,
+      fileName: newName,
+      forceDocument: true,
+      caption: message.message || "",
+      workers: 1,
+    });
+    const renamed = Array.isArray(sent) ? sent[0] : sent;
+    await client.deleteMessages(entity, [message.id], { revoke: true });
+    res.json({ file: fileSummary(renamed, folderId) });
+  } catch (error) {
+    next(error);
+  } finally {
+    if (tempPath) await fs.promises.unlink(tempPath).catch(() => {});
+  }
+});
+
+app.post("/api/v1/files/:id/move", express.json({ limit: "16kb" }), async (req, res, next) => {
+  try {
+    const sourceFolderId = String(req.query.folderId || "me");
+    const targetFolderId = String(req.body?.targetFolderId || "");
+    if (!targetFolderId) return sendError(res, 400, "targetFolderId is required.");
+    if (sourceFolderId === targetFolderId) return sendError(res, 400, "Source and target folders are the same.");
+    const { entity: source, message } = await findMessage(sourceFolderId, req.params.id);
+    const target = await resolveFolder(targetFolderId);
+    const forwarded = await client.forwardMessages(target, {
+      messages: [message.id],
+      fromPeer: source,
+    });
+    const moved = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+    if (!moved || (!moved.media?.document && !moved.media?.photo)) {
+      return sendError(res, 502, "Telegram did not confirm the moved file; the source was kept.");
+    }
+    await client.deleteMessages(source, [message.id], { revoke: true });
+    res.json({ file: fileSummary(moved, targetFolderId) });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -252,8 +353,7 @@ app.get("/api/v1/files/:id/download", async (req, res, next) => {
   try {
     const folderId = String(req.query.folderId || "me");
     const { message } = await findMessage(folderId, req.params.id);
-    tempPath = path.join(tempDir, `${crypto.randomUUID()}.download`);
-    await client.downloadMedia(message, { outputFile: tempPath });
+    tempPath = await downloadToTemp(message);
     const stat = await fs.promises.stat(tempPath);
     res.setHeader("Content-Length", String(stat.size));
     res.setHeader("Content-Type", message.media?.document?.mimeType || "application/octet-stream");
@@ -279,6 +379,9 @@ app.delete("/api/v1/files/:id", async (req, res, next) => {
 });
 
 app.use((error, _req, res, _next) => {
+  if (error?.code === "LIMIT_FILE_SIZE") {
+    return sendError(res, 413, `File exceeds this account's ${accountMaxBytes}-byte Telegram limit.`);
+  }
   console.error("Tuba API error:", error?.message || error);
   if (res.headersSent) return;
   const status = Number.isInteger(error?.status) ? error.status : 500;
