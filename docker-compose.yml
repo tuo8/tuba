@@ -1,0 +1,14 @@
+services:
+  tuba-mtproto:
+    build:
+      context: ./services/telegram-mtproto
+      dockerfile: Dockerfile
+    container_name: tuba-mtproto
+    restart: unless-stopped
+    env_file:
+      - ./services/telegram-mtproto/.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8788
+    ports:
+      - "127.0.0.1:8788:8788"
