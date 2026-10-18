@@ -6,8 +6,8 @@ import os from "node:os";
 import { pipeline } from "node:stream/promises";
 import express from "express";
 import multer from "multer";
-import { TelegramClient, Api } from "telegram";
-import { StringSession } from "telegram/sessions";
+import { TelegramClient, Api } from "teleproto";
+import { StringSession } from "teleproto/sessions";
 
 const app = express();
 const serviceDir = path.dirname(fileURLToPath(import.meta.url));
