@@ -206,7 +206,7 @@ app.patch("/api/v1/folders/:id", express.json({ limit: "16kb" }), async (req, re
     const name = String(req.body?.name || "").trim();
     if (!name || name.length > 100) return sendError(res, 400, "Folder name must be 1–100 characters.");
     const entity = await resolveFolder(folderId);
-    await client.invoke(new Api.channels.EditTitle({ channel: entity, title: name }));
+    await client.invoke(new Api.channels.EditTitle({ channel: await client.getInputEntity(entity), title: name }));
     res.json({ ...folderSummary(entity), name });
   } catch (error) {
     next(error);
@@ -222,7 +222,7 @@ app.delete("/api/v1/folders/:id", async (req, res, next) => {
     if (recent.length > 0) {
       return sendError(res, 409, "Folder is not empty. Move or delete its files before deleting the folder.");
     }
-    await client.invoke(new Api.channels.DeleteChannel({ channel: entity }));
+    await client.invoke(new Api.channels.DeleteChannel({ channel: await client.getInputEntity(entity) }));
     res.status(204).end();
   } catch (error) {
     next(error);

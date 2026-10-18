@@ -1,0 +1,29 @@
+name: Tuba MTProto service checks
+
+on:
+  push:
+    branches:
+      - main
+      - feature/telegram-mtproto-drive
+    paths:
+      - "services/telegram-mtproto/**"
+      - ".github/workflows/tuba-mtproto-check.yml"
+  pull_request:
+    paths:
+      - "services/telegram-mtproto/**"
+      - ".github/workflows/tuba-mtproto-check.yml"
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/telegram-mtproto
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install --ignore-scripts
+      - run: node --check src/server.js
+      - run: node --check scripts/login.js
