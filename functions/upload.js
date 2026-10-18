@@ -68,7 +68,17 @@ function authCheck(env, url, request) {
     return true;
 }
 
-export async function onRequestPost(context) {  // Contents of context object
+export async function onRequestPost(context) {
+    return new Response(JSON.stringify({
+        error: "Legacy ImgBed upload endpoint is disabled in Tuba. Open /tuba.html and use the separately deployed Telegram MTProto drive service. Uploads are not stored in Bot API, R2, or S3.",
+        entry: "/tuba.html"
+    }), {
+        status: 410,
+        headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
+    });
+    
+    // Legacy implementation retained below for source history; unreachable.
+    // Contents of context object
     const { request, env, params, waitUntil, next, data } = context;
 
     const url = new URL(request.url);
