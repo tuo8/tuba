@@ -1,0 +1,19 @@
+{
+  "name": "tuba-telegram-mtproto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tuba's direct Telegram user-account storage API",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "login": "node scripts/login.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "telegram": "^2.26.22"
+  }
+}
