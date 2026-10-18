@@ -25,7 +25,7 @@ Never commit `.env`, the session string, API token, or login code. A Telegram se
 
 The default bind address is `127.0.0.1` so the API is not exposed to the public internet by default. If the web UI is hosted elsewhere, put this service behind a private network or a proper access gateway such as Cloudflare Access before making it reachable. Do not rely on CORS as authentication. Do not embed the Telegram session string in frontend code.
 
-For a browser client, the API token must be supplied securely by the user or by a protected gateway; do not bake a shared token into public JavaScript. The repository homepage links to `/tuba.html`, a small portal where the user enters the deployed service URL. The legacy Pages upload endpoint returns HTTP 410 to prevent fallback to Bot API, R2, or S3 storage. The actual file manager and file transfer run on this Node.js service, so multi-gigabyte file bytes do not pass through Pages.
+For a browser client, the API token must be supplied securely by the user or by a protected gateway; do not bake a shared token into public JavaScript. The repository homepage is a small portal where the user enters the deployed service URL; `/tuba.html` remains an alternate entry. The legacy Pages upload endpoint returns HTTP 410 to prevent fallback to Bot API, R2, or S3 storage. The actual file manager and file transfer run on this Node.js service, so multi-gigabyte file bytes do not pass through Pages.
 
 ## Web interface
 
