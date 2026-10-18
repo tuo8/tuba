@@ -27,3 +27,4 @@ jobs:
       - run: npm install --ignore-scripts
       - run: node --check src/server.js
       - run: node --check scripts/login.js
+      - run: node scripts/check-ui-script.mjs

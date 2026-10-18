@@ -254,16 +254,20 @@ app.get("/api/v1/search", async (req, res, next) => {
     const query = String(req.query.q || "").trim().toLocaleLowerCase();
     if (query.length < 2) return sendError(res, 400, "Search query must contain at least 2 characters.");
     const requestedFolder = req.query.folderId ? String(req.query.folderId) : null;
-    const targets = requestedFolder
-      ? [{ id: requestedFolder, entity: await resolveFolder(requestedFolder) }]
-      : [
-          { id: "me", entity: "me" },
-          ...(await dialogs())
-            .map((dialog) => dialog.entity)
-            .filter((entity) => entity?.className === "Channel" && entity.broadcast)
-            .slice(0, 50)
-            .map((entity) => ({ id: String(entity.id), entity })),
-        ];
+    let complete = true;
+    let targets;
+    if (requestedFolder) {
+      targets = [{ id: requestedFolder, entity: await resolveFolder(requestedFolder) }];
+    } else {
+      const channels = (await dialogs())
+        .map((dialog) => dialog.entity)
+        .filter((entity) => entity?.className === "Channel" && entity.broadcast);
+      complete = channels.length <= 50;
+      targets = [
+        { id: "me", entity: "me" },
+        ...channels.slice(0, 50).map((entity) => ({ id: String(entity.id), entity })),
+      ];
+    }
     const matches = [];
     for (const target of targets) {
       const messages = await client.getMessages(target.entity, { limit: 200, search: query });
@@ -274,7 +278,7 @@ app.get("/api/v1/search", async (req, res, next) => {
         }
       }
     }
-    res.json({ files: matches.slice(0, 200), complete: targets.length <= 51 });
+    res.json({ files: matches.slice(0, 200), complete });
   } catch (error) {
     next(error);
   }
