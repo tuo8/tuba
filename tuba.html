@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827">
+<title>Tuba · Telegram 网盘入口</title>
+<style>
+:root{color-scheme:dark;background:#0b1220;color:#e8eef8;font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px}
+main{width:min(100%,620px);background:#121c2d;border:1px solid #2a3950;border-radius:22px;padding:clamp(22px,5vw,38px)}
+h1{margin:0 0 8px;font-size:clamp(25px,5vw,34px)}p{color:#b7c5d8}
+label{display:block;margin:22px 0 8px;font-weight:650}
+input{width:100%;padding:14px;border-radius:12px;border:1px solid #3b4d67;background:#0b1220;color:#fff;font:inherit}
+button{border:0;border-radius:12px;padding:13px 17px;background:#61a8ff;color:#071323;font:700 15px system-ui;cursor:pointer}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.secondary{background:#24354d;color:#e8eef8}
+.hint{font-size:13px;color:#9aaac0}.error{color:#ff9797;min-height:1.5em}
+</style></head>
+<body><main>
+<h1>Tuba · Telegram 网盘</h1>
+<p>使用 Telegram 用户账号的 MTProto 连接。文件由独立 Node.js 服务直接传输到 Telegram，不经过 Cloudflare Pages 上传代理。</p>
+<label for="serviceUrl">MTProto 服务根地址</label>
+<input id="serviceUrl" type="url" inputmode="url" placeholder="https://你的服务域名" autocomplete="url">
+<div class="actions"><button id="open">打开文件管理器</button><button id="forget" class="secondary">清除保存的地址</button></div>
+<p id="error" class="error" role="status"></p>
+<p class="hint">输入你部署的 Tuba MTProto 服务地址。服务地址只保存在当前浏览器；打开文件管理器后，再输入 API Token。不要把 Telegram Session 或 API Token 写入公开网页。</p>
+<p class="hint">Telegram 单文件大小仍受平台限制：普通账号约 2 GB，Premium 约 4 GB。远程访问必须使用 HTTPS，并为服务配置可靠的访问控制。</p>
+</main>
+<script>
+(() => {
+  const field = document.getElementById("serviceUrl");
+  const error = document.getElementById("error");
+  try { field.value = localStorage.getItem("tuba.serviceUrl") || ""; } catch {}
+  document.getElementById("open").addEventListener("click", () => {
+    let url;
+    try { url = new URL(field.value.trim()); } catch { error.textContent = "请输入完整有效的服务地址，例如 https://drive.example.com"; return; }
+    if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
+      error.textContent = "请填写服务根地址，不要附带路径、用户名、密码、查询参数或片段。"; return;
+    }
+    if (url.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
+      error.textContent = "远程服务必须使用 HTTPS。"; return;
+    }
+    try { localStorage.setItem("tuba.serviceUrl", url.origin); } catch {}
+    window.location.href = url.origin + "/";
+  });
+  document.getElementById("forget").addEventListener("click", () => {
+    try { localStorage.removeItem("tuba.serviceUrl"); } catch {}
+    field.value = ""; error.textContent = "已清除此浏览器保存的服务地址。";
+  });
+})();
+</script></body></html>
