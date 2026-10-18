@@ -27,6 +27,10 @@ The default bind address is `127.0.0.1` so the API is not exposed to the public 
 
 For a browser client, the API token must be supplied securely by the user or by a protected gateway; do not bake a shared token into public JavaScript. The existing ImgBed UI has not yet been wired to this service in this milestone.
 
+## Web interface
+
+The service serves a responsive desktop/mobile file manager at its root URL. Enter the Tuba API token to connect. It includes folder navigation, upload progress, search, download, rename, move, and deletion controls. The token is held in the current browser tab's sessionStorage. For remote access, use HTTPS and a trusted access gateway; do not expose this service without appropriate protection.
+
 ## API
 
 All routes except `GET /api/v1/health` require:

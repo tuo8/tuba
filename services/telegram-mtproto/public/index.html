@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Tuba · Telegram Drive</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1220;--panel:#121c2d;--panel2:#182438;--line:#2a3950;--text:#e8eef8;--muted:#9aaac0;--accent:#61a8ff;--danger:#ff7979;--good:#72d5a0}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input{font:inherit}button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:9px 12px;cursor:pointer}button:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:not-allowed}
+    input{width:100%;background:#0b1423;border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--text);min-width:0}
+    .top{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;justify-content:space-between;background:#0f1929;position:sticky;top:0;z-index:2}
+    .brand{font-size:21px;font-weight:750;letter-spacing:.2px}.brand small{font-size:12px;color:var(--muted);font-weight:500;display:block}
+    .wrap{max-width:1440px;margin:auto;padding:20px}.connect{max-width:520px;margin:7vh auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px}
+    .muted{color:var(--muted)}.hint{font-size:13px;color:var(--muted)}.stack{display:grid;gap:12px}.row{display:flex;gap:10px;align-items:center}.row>*{min-width:0}.grow{flex:1}
+    .layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:18px}.side,.content{background:var(--panel);border:1px solid var(--line);border-radius:16px;min-width:0}
+    .side{padding:14px;align-self:start}.sidehead{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;font-weight:700}
+    .folder{width:100%;text-align:left;display:flex;justify-content:space-between;gap:8px;margin:4px 0;background:transparent}.folder.active{background:#1d3655;border-color:#2d5d91}.folder span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .content{padding:18px}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.toolbar input{flex:1;min-width:160px}
+    .drop{border:1px dashed #45607e;border-radius:12px;padding:16px;text-align:center;color:var(--muted);margin:12px 0}.drop.drag{border-color:var(--accent);background:#142640}
+    .progress{height:5px;background:#26354b;border-radius:8px;overflow:hidden;margin-top:8px}.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+    .tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:600px}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid var(--line);vertical-align:middle}th{font-size:12px;color:var(--muted);font-weight:600}
+    .filename{font-weight:650;overflow-wrap:anywhere}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:6px 8px;font-size:12px}.empty{text-align:center;padding:44px 16px;color:var(--muted)}
+    .status{margin:12px 0;padding:10px 12px;border-radius:10px;background:#17243a;color:var(--muted);overflow-wrap:anywhere}.status.error{color:#ffc0c0;background:#351f2a}.status.good{color:#b5f5d1;background:#18352c}
+    .hidden{display:none!important}.pill{border:1px solid var(--line);border-radius:999px;padding:4px 9px;color:var(--muted);font-size:12px}
+    @media(max-width:760px){.top{padding:14px 16px}.wrap{padding:12px}.layout{grid-template-columns:1fr}.side{padding:12px}.folders{display:flex;gap:6px;overflow-x:auto}.folder{width:auto;min-width:max-content}.content{padding:12px}.toolbar button{flex:1}.connect{margin:4vh 8px;padding:18px}.hide-mobile{display:none}.toolbar input{min-width:100%}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand">Tuba <small>Telegram Drive · MTProto</small></div><div class="row"><span id="tier" class="pill">未连接</span><button id="disconnect" class="hidden">断开</button></div></header>
+  <main class="wrap">
+    <section id="connect" class="connect stack">
+      <h2 style="margin:0">连接你的 Telegram 存储</h2>
+      <p class="muted" style="margin:0">输入服务端管理员为你提供的 Tuba API 访问令牌。令牌只保存在当前标签页的 sessionStorage。</p>
+      <label class="stack"><span>API Token</span><input id="token" type="password" autocomplete="off" placeholder="粘贴 TUBA_API_TOKEN"></label>
+      <button id="connectBtn">连接</button>
+      <p class="hint">不要在公共电脑上保存令牌。Telegram 登录会话只应保存在服务端环境变量中，不能放进浏览器。</p>
+    </section>
+    <section id="workspace" class="hidden">
+      <div class="layout">
+        <aside class="side">
+          <div class="sidehead"><span>文件夹</span><button id="newFolder" title="新建文件夹">＋</button></div>
+          <div id="folders" class="folders stack"></div>
+          <p class="hint">文件夹对应 Telegram 频道；“Saved Messages”是默认位置。</p>
+        </aside>
+        <section class="content">
+          <div class="toolbar">
+            <h2 id="folderTitle" style="margin:0;font-size:20px">文件</h2>
+            <span class="grow"></span>
+            <button id="renameFolder">重命名文件夹</button><button id="deleteFolder">删除空文件夹</button>
+          </div>
+          <div class="toolbar"><input id="search" placeholder="搜索文件名或备注（至少 2 个字符）"><button id="clearSearch">清除搜索</button><button id="refresh">刷新</button></div>
+          <div id="drop" class="drop"><strong>上传文件</strong><div class="hint">点击选择，或将文件拖到此处；大文件会直接传输到 Telegram MTProto 服务</div><input id="files" type="file" multiple style="margin-top:12px"></div>
+          <div id="progressArea"></div>
+          <div id="status" class="status">请先连接。</div>
+          <div id="fileList" class="tablewrap"><div class="empty">正在加载文件…</div></div>
+        </section>
+      </div>
+    </section>
+  </main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  let token = sessionStorage.getItem("tubaApiToken") || "";
+  let folders = [];
+  let selectedFolder = "me";
+  let files = [];
+  let searching = false;
+
+  function esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+  }
+  function size(bytes) {
+    const n = Number(bytes || 0);
+    if (!n) return "—";
+    const units = ["B","KB","MB","GB","TB"];
+    let value = n, i = 0;
+    while (value >= 1000 && i < units.length - 1) { value /= 1000; i++; }
+    return value.toFixed(i ? 2 : 0) + " " + units[i];
+  }
+  function message(text, kind="") {
+    $("status").textContent = text;
+    $("status").className = "status" + (kind ? " " + kind : "");
+  }
+  async function api(path, options={}) {
+    const headers = new Headers(options.headers || {});
+    headers.set("Authorization", "Bearer " + token);
+    const response = await fetch(path, {...options, headers});
+    if (!response.ok) {
+      let detail = "HTTP " + response.status;
+      try { detail = (await response.json()).error || detail; } catch {}
+      throw new Error(detail);
+    }
+    if (response.status === 204) return null;
+    return response.json();
+  }
+  async function connect() {
+    token = $("token").value.trim();
+    if (!token) return message("请先输入 API Token。", "error");
+    try {
+      const data = await api("/api/v1/folders");
+      sessionStorage.setItem("tubaApiToken", token);
+      $("connect").classList.add("hidden");
+      $("workspace").classList.remove("hidden");
+      $("disconnect").classList.remove("hidden");
+      $("tier").textContent = "已连接";
+      folders = data;
+      renderFolders();
+      await loadFiles();
+      try {
+        const health = await fetch("/api/v1/health").then(r => r.json());
+        $("tier").textContent = (health.accountTier === "premium" ? "Premium" : "普通账号") + " · " + size(health.maxFileBytes);
+      } catch {}
+      message("已连接 Telegram。", "good");
+    } catch (error) {
+      token = "";
+      message("连接失败：" + error.message, "error");
+    }
+  }
+  function disconnect() {
+    sessionStorage.removeItem("tubaApiToken");
+    token = ""; folders = []; files = [];
+    $("workspace").classList.add("hidden");
+    $("connect").classList.remove("hidden");
+    $("disconnect").classList.add("hidden");
+    $("tier").textContent = "未连接";
+    $("token").value = "";
+  }
+  function renderFolders() {
+    $("folders").innerHTML = folders.map(folder => {
+      const active = String(folder.id) === String(selectedFolder);
+      return '<button class="folder ' + (active ? "active" : "") + '" data-folder="' + esc(folder.id) + '"><span>' + esc(folder.name) + '</span><span>›</span></button>';
+    }).join("");
+    $("folders").querySelectorAll("[data-folder]").forEach(button => button.addEventListener("click", async () => {
+      selectedFolder = button.dataset.folder;
+      searching = false; $("search").value = "";
+      renderFolders(); updateFolderControls(); await loadFiles();
+    }));
+    updateFolderControls();
+  }
+  function updateFolderControls() {
+    const folder = folders.find(item => String(item.id) === String(selectedFolder));
+    $("folderTitle").textContent = folder?.name || "文件";
+    $("renameFolder").disabled = selectedFolder === "me";
+    $("deleteFolder").disabled = selectedFolder === "me";
+  }
+  function renderFiles() {
+    if (!files.length) {
+      $("fileList").innerHTML = '<div class="empty">' + (searching ? "没有匹配的文件。" : "此处还没有文件。上传文件，或切换文件夹。") + '</div>';
+      return;
+    }
+    $("fileList").innerHTML = '<table><thead><tr><th>文件名</th><th>大小</th><th class="hide-mobile">日期</th><th>操作</th></tr></thead><tbody>' +
+      files.map(file => {
+        const folder = folders.find(item => String(item.id) === String(file.folderId));
+        const folderNote = searching ? '<div class="hint">' + esc(folder?.name || "Telegram") + '</div>' : "";
+        return '<tr><td><div class="filename">' + esc(file.name) + '</div>' + folderNote + '<div class="hint">' + esc(file.mimeType || file.kind || "") + '</div></td><td>' + esc(size(file.size)) + '</td><td class="hide-mobile">' + esc(file.date ? new Date(file.date).toLocaleDateString() : "—") + '</td><td><div class="actions">' +
+          '<button data-action="download" data-id="' + esc(file.id) + '" data-folder="' + esc(file.folderId) + '">下载</button>' +
+          '<button data-action="rename" data-id="' + esc(file.id) + '" data-folder="' + esc(file.folderId) + '">重命名</button>' +
+          '<button data-action="move" data-id="' + esc(file.id) + '" data-folder="' + esc(file.folderId) + '">移动</button>' +
+          '<button data-action="delete" data-id="' + esc(file.id) + '" data-folder="' + esc(file.folderId) + '">删除</button>' +
+          '</div></td></tr>';
+      }).join("") + '</tbody></table>';
+    $("fileList").querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => fileAction(button.dataset.action, button.dataset.id, button.dataset.folder)));
+  }
+  async function loadFiles() {
+    try {
+      message("正在读取 Telegram 文件…");
+      if (searching) {
+        const result = await api("/api/v1/search?q=" + encodeURIComponent($("search").value.trim()));
+        files = result.files || [];
+        if (!result.complete) message("搜索已完成部分文件夹；如需完整结果，请缩小范围。");
+      } else {
+        const result = await api("/api/v1/files?folderId=" + encodeURIComponent(selectedFolder) + "&limit=200");
+        files = result.files || [];
+      }
+      renderFiles();
+      if (!$("status").textContent.startsWith("搜索已完成部分")) message("已加载 " + files.length + " 个文件。", "good");
+    } catch (error) {
+      files = []; renderFiles(); message("读取失败：" + error.message, "error");
+    }
+  }
+  async function fileAction(action, id, folderId) {
+    const file = files.find(item => String(item.id) === String(id) && String(item.folderId) === String(folderId));
+    if (!file) return;
+    try {
+      if (action === "download") {
+        message("正在下载 " + file.name + "…");
+        const response = await fetch("/api/v1/files/" + encodeURIComponent(id) + "/download?folderId=" + encodeURIComponent(folderId), {headers:{Authorization:"Bearer " + token}});
+        if (!response.ok) throw new Error("下载失败，HTTP " + response.status);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = file.name; a.click(); URL.revokeObjectURL(url);
+        message("下载已开始。", "good");
+      } else if (action === "rename") {
+        const name = prompt("输入新的文件名：", file.name);
+        if (!name || name === file.name) return;
+        await api("/api/v1/files/" + encodeURIComponent(id) + "?folderId=" + encodeURIComponent(folderId), {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});
+        message("文件已重命名。", "good"); await loadFiles();
+      } else if (action === "move") {
+        const options = folders.filter(item => String(item.id) !== String(folderId));
+        if (!options.length) return message("请先创建另一个文件夹。");
+        const choices = options.map(item => item.name + "  [ID: " + item.id + "]").join("\n");
+        const target = prompt("输入目标文件夹 ID：\n" + choices, options[0].id);
+        if (!target) return;
+        if (!options.some(item => String(item.id) === String(target))) return message("目标文件夹 ID 不正确。", "error");
+        await api("/api/v1/files/" + encodeURIComponent(id) + "/move?folderId=" + encodeURIComponent(folderId), {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({targetFolderId:target})});
+        message("文件已移动。", "good"); await loadFiles();
+      } else if (action === "delete") {
+        if (!confirm("确定从 Telegram 中永久删除文件“" + file.name + "”？")) return;
+        await api("/api/v1/files/" + encodeURIComponent(id) + "?folderId=" + encodeURIComponent(folderId), {method:"DELETE"});
+        message("文件已删除。", "good"); await loadFiles();
+      }
+    } catch (error) { message("操作失败：" + error.message, "error"); }
+  }
+  async function uploadFiles(list) {
+    const selected = Array.from(list || []);
+    if (!selected.length) return;
+    for (const file of selected) {
+      const row = document.createElement("div");
+      row.className = "status";
+      row.innerHTML = '<span>' + esc(file.name) + '</span><div class="progress"><i></i></div>';
+      $("progressArea").appendChild(row);
+      const bar = row.querySelector("i");
+      try {
+        await new Promise((resolve, reject) => {
+          const data = new FormData();
+          data.append("file", file, file.name);
+          data.append("folderId", selectedFolder);
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/v1/files");
+          xhr.setRequestHeader("Authorization", "Bearer " + token);
+          xhr.upload.onprogress = event => { if (event.lengthComputable) bar.style.width = Math.round(event.loaded / event.total * 100) + "%"; };
+          xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(xhr.responseText || "HTTP " + xhr.status));
+          xhr.onerror = () => reject(new Error("网络连接中断"));
+          xhr.send(data);
+        });
+        row.classList.add("good"); row.firstChild.textContent = file.name + " — 上传完成";
+      } catch (error) {
+        row.classList.add("error"); row.firstChild.textContent = file.name + " — " + error.message;
+      }
+    }
+    $("files").value = "";
+    await loadFiles();
+  }
+
+  $("connectBtn").addEventListener("click", connect);
+  $("token").addEventListener("keydown", event => { if (event.key === "Enter") connect(); });
+  $("disconnect").addEventListener("click", disconnect);
+  $("refresh").addEventListener("click", loadFiles);
+  $("clearSearch").addEventListener("click", () => { searching = false; $("search").value = ""; loadFiles(); });
+  $("search").addEventListener("keydown", event => { if (event.key === "Enter") { if ($("search").value.trim().length < 2) return message("搜索词至少需要 2 个字符。", "error"); searching = true; loadFiles(); } });
+  $("newFolder").addEventListener("click", async () => {
+    const name = prompt("新文件夹名称：");
+    if (!name) return;
+    try { const folder = await api("/api/v1/folders", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})}); folders.push(folder); selectedFolder = folder.id; renderFolders(); await loadFiles(); }
+    catch (error) { message("创建文件夹失败：" + error.message, "error"); }
+  });
+  $("renameFolder").addEventListener("click", async () => {
+    const folder = folders.find(item => String(item.id) === String(selectedFolder));
+    if (!folder || selectedFolder === "me") return;
+    const name = prompt("新的文件夹名称：", folder.name);
+    if (!name || name === folder.name) return;
+    try { await api("/api/v1/folders/" + encodeURIComponent(selectedFolder), {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})}); folder.name = name; renderFolders(); }
+    catch (error) { message("重命名失败：" + error.message, "error"); }
+  });
+  $("deleteFolder").addEventListener("click", async () => {
+    const folder = folders.find(item => String(item.id) === String(selectedFolder));
+    if (!folder || selectedFolder === "me") return;
+    if (!confirm("确定删除空文件夹“" + folder.name + "”？文件夹必须为空。")) return;
+    try { await api("/api/v1/folders/" + encodeURIComponent(selectedFolder), {method:"DELETE"}); folders = folders.filter(item => String(item.id) !== String(selectedFolder)); selectedFolder = "me"; renderFolders(); await loadFiles(); }
+    catch (error) { message("删除文件夹失败：" + error.message, "error"); }
+  });
+  $("files").addEventListener("change", event => uploadFiles(event.target.files));
+  const drop = $("drop");
+  drop.addEventListener("dragover", event => { event.preventDefault(); drop.classList.add("drag"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+  drop.addEventListener("drop", event => { event.preventDefault(); drop.classList.remove("drag"); uploadFiles(event.dataTransfer.files); });
+
+  if (token) { $("token").value = token; connect(); }
+})();
+</script>
+</body>
+</html>

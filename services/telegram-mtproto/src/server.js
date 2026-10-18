@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { pipeline } from "node:stream/promises";
 import express from "express";
@@ -9,6 +10,7 @@ import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions";
 
 const app = express();
+const serviceDir = path.dirname(fileURLToPath(import.meta.url));
 const host = process.env.HOST || "127.0.0.1";
 const port = Number.parseInt(process.env.PORT || "8788", 10);
 const apiId = Number.parseInt(process.env.TG_API_ID || "", 10);
@@ -63,8 +65,10 @@ function constantTimeEqual(left, right) {
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const sameOrigin = origin && origin === `${forwardedProto || req.protocol}://${req.headers.host}`;
   if (origin) {
-    if (!allowedOrigins.has(origin)) {
+    if (!sameOrigin && !allowedOrigins.has(origin)) {
       return sendError(res, 403, "Origin is not allowed.");
     }
     res.setHeader("Access-Control-Allow-Origin", origin);
@@ -156,6 +160,8 @@ async function downloadToTemp(message) {
   await client.downloadMedia(message, { outputFile: tempPath });
   return tempPath;
 }
+
+app.use(express.static(path.join(serviceDir, "public"), { index: "index.html" }));
 
 app.get("/api/v1/health", (_req, res) => {
   res.json({
