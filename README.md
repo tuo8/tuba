@@ -1,3 +1,15 @@
+# Tuba — Telegram MTProto file drive
+
+> **Customization branch:** [feature/telegram-mtproto-drive](https://github.com/tuo8/tuba/tree/feature/telegram-mtproto-drive). The `main` branch is intentionally left unchanged from the source project.
+
+Tuba is a personal file workspace based on [artai8/CloudFlare-ImgBed](https://github.com/artai8/CloudFlare-ImgBed), using Telegram user-account **MTProto** instead of relying on the Telegram Bot API for large file transfers. The first implementation milestone adds a separate Node.js MTProto service with file upload/download/delete, folder listing/creation/rename, file rename/move, and search endpoints.
+
+**Important status:** the MTProto service is an initial API implementation and has not yet been wired into the existing ImgBed browser UI or deployed. Large files must upload directly to the MTProto service rather than passing through Cloudflare Pages Functions. See [the implementation notes](https://github.com/tuo8/tuba/blob/feature/telegram-mtproto-drive/docs/TUBA_TELEGRAM_MTPROTO.md) and [service setup](https://github.com/tuo8/tuba/blob/feature/telegram-mtproto-drive/services/telegram-mtproto/README.md).
+
+Telegram itself is not unlimited per file: the service currently caps uploads at 2,000,000,000 bytes for standard accounts and 4,000,000,000 bytes for Premium accounts. Original file storage is Telegram only; do not put Telegram session strings or API tokens in source control.
+
+---
+
 # CloudFlare-ImgBed
 
 开源图片/文件托管解决方案，基于 Cloudflare Pages 和 Telegram，支持 Telegram Bot 、 Cloudflare R2 ，S3 API 等多种不同存储渠道。
