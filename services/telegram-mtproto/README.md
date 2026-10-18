@@ -9,6 +9,16 @@ This Node.js service connects to Telegram as a **user account** through MTProto.
 - Telegram API ID and API hash from [my.telegram.org](https://my.telegram.org)
 - A secure environment in which to keep the Telegram session and API token
 
+## Docker deployment
+
+At the repository root, copy `services/telegram-mtproto/.env.example` to `services/telegram-mtproto/.env` and fill in the Telegram API credentials, session string, and a strong `TUBA_API_TOKEN`. Then run:
+
+```bash
+docker compose up -d --build
+```
+
+Compose binds the service to `127.0.0.1:8788` on the host by default, not to every public interface. Put it behind a trusted HTTPS reverse proxy/access gateway before remote use. If deploying the Node service and portal on different origins, set `TUBA_ALLOWED_ORIGINS` to the exact portal origin; CORS is not authentication.
+
 ## First login
 
 1. Copy `.env.example` to `.env`.
